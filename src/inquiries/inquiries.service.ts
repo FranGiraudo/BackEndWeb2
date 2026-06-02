@@ -148,10 +148,10 @@ export class InquiriesService {
       );
     }
 
-    // Si alguien responde, se borra el markedAsReadBy para que vuelva a aparecer como nuevo
+    // Quien responde ya leyó la consulta; el otro participante la verá como nueva
     await this.prisma.inquiry.update({
       where: { id: inquiryId },
-      data: { markedAsReadBy: null },
+      data: { markedAsReadBy: userRole },
     });
 
     const reply = await this.prisma.reply.create({
