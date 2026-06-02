@@ -36,6 +36,13 @@ import { Roles } from '../auth/decorators/roles.decorator';
 export class CarsController {
   constructor(private readonly carsService: CarsService) {}
 
+  @Get('me')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('vendedor')
+  findMyCars(@Request() req) {
+    return this.carsService.findAll({ sellerId: String(req.user.id) });
+  }
+
   @Get()
   findAll(@Query() filters: FilterCarsDto) {
     return this.carsService.findAll(filters);

@@ -5,6 +5,31 @@ import { FilterCarsDto } from './dto/filter-cars.dto';
 export declare class CarsController {
     private readonly carsService;
     constructor(carsService: CarsService);
+    findMyCars(req: any): Promise<{
+        id: any;
+        brand: any;
+        model: any;
+        year: any;
+        price: any;
+        km: any;
+        bodyType: any;
+        location: any;
+        transmission: any;
+        fuel: any;
+        description: any;
+        image: any;
+        images: any;
+        aiStatus: any;
+        aiDamages: any;
+        aiPriceMin: any;
+        aiPriceMax: any;
+        views: any;
+        contacts: any;
+        sellerId: any;
+        sellerEmail: any;
+        sellerName: string | null;
+        createdAt: any;
+    }[]>;
     findAll(filters: FilterCarsDto): Promise<{
         id: any;
         brand: any;
