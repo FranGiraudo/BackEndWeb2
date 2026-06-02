@@ -1,27 +1,22 @@
 // src/images/images.service.ts
 import { Injectable } from '@nestjs/common';
-import { join } from 'path';
-import { existsSync, mkdirSync } from 'fs';
+import sharp from 'sharp';
+import { CloudinaryService } from './cloudinary.service';
 
 @Injectable()
 export class ImagesService {
-  /**
-   * Verifica que el directorio /uploads exista y lo crea si no.
-   */
-  ensureUploadsDir(): void {
-    const uploadsPath = join(process.cwd(), 'uploads');
-    if (!existsSync(uploadsPath)) {
-      mkdirSync(uploadsPath, { recursive: true });
-    }
-  }
+  constructor(private readonly cloudinaryService: CloudinaryService) {}
 
   /**
-   * Construye la URL pública completa de una imagen subida.
-   * @param filename - Nombre del archivo (ej: "1717300000000-foto.webp")
-   * @returns URL completa (ej: "http://localhost:3000/uploads/1717300000000-foto.webp")
+   * Convierte un buffer de imagen a WebP con calidad 82 y sube a Cloudinary.
+   * Devuelve la URL segura (https) del asset subido.
    */
-  buildImageUrl(filename: string): string {
-    const appUrl = process.env.APP_URL || 'http://localhost:3000';
-    return `${appUrl}/uploads/${filename}`;
+  async convertAndUpload(buffer: Buffer): Promise<string> {
+    const webpBuffer = await sharp(buffer)
+      .webp({ quality: 82 })
+      .toBuffer();
+
+    const result = await this.cloudinaryService.uploadBuffer(webpBuffer);
+    return result.secure_url;
   }
 }
