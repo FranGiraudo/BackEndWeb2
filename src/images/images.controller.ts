@@ -17,14 +17,34 @@ import { RolesGuard } from '../auth/guards/roles.guard';
 import { AiService } from '../ai/ai.service';
 import { ImagesService } from './images.service';
 
-@Controller('cars')
+@Controller()
 export class ImagesController {
   constructor(
     private readonly aiService: AiService,
     private readonly imagesService: ImagesService,
   ) {}
 
-  @Post('upload-images')
+  @Post('auth/upload-avatar')
+  @UseGuards(JwtAuthGuard)
+  @UseInterceptors(
+    FilesInterceptor('avatar', 1, {
+      storage: memoryStorage(),
+      fileFilter: (req, file, callback) => {
+        const allowed = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+        if (allowed.includes(file.mimetype)) callback(null, true);
+        else callback(new BadRequestException('Solo imágenes.'), false);
+      },
+      limits: { fileSize: 5 * 1024 * 1024 },
+    }),
+  )
+  async uploadAvatar(@UploadedFiles() files: Express.Multer.File[]) {
+    if (!files || files.length === 0) throw new BadRequestException('No se proporcionó imagen.');
+    const file = files[0];
+    const url = await this.imagesService.convertAndUpload(file.buffer);
+    return { success: true, url };
+  }
+
+  @Post('cars/upload-images')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('vendedor')
   @UseInterceptors(

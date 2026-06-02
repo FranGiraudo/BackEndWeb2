@@ -61,15 +61,43 @@ export class InquiriesService {
       throw new ForbiddenException('No podés contactarte con tu propia publicación.');
     }
 
-    const inquiry = await this.prisma.inquiry.create({
-      data: {
-        text: dto.text,
-        senderName: buyerName,
+    // Buscar si ya existe una consulta de este comprador para este auto
+    let inquiry = await this.prisma.inquiry.findFirst({
+      where: {
         carId: dto.carId,
         senderId: buyerId,
-        sellerId: car.sellerId,
       },
     });
+
+    if (inquiry) {
+      // Si ya existe, agregamos un Reply en lugar de crear un Inquiry nuevo
+      await this.prisma.reply.create({
+        data: {
+          text: dto.text,
+          senderName: buyerName,
+          senderRole: 'comprador',
+          inquiryId: inquiry.id,
+          senderId: buyerId,
+        },
+      });
+
+      // Marcar el Inquiry principal como "no leído" por el vendedor para que aparezca "NUEVO"
+      await this.prisma.inquiry.update({
+        where: { id: inquiry.id },
+        data: { markedAsReadBy: null, updatedAt: new Date() },
+      });
+    } else {
+      // Si no existe, creamos un Inquiry nuevo
+      inquiry = await this.prisma.inquiry.create({
+        data: {
+          text: dto.text,
+          senderName: buyerName,
+          carId: dto.carId,
+          senderId: buyerId,
+          sellerId: car.sellerId,
+        },
+      });
+    }
 
     // Registrar el contacto en analytics del vehículo
     await this.prisma.car.update({

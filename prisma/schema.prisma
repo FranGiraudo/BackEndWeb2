@@ -62,6 +62,8 @@ model User {
   direccion    String?
   email        String    @unique
   passwordHash String
+  avatarUrl    String?   @db.Text
+  descripcion  String?   @db.Text
   rol          Role      @default(comprador)
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt

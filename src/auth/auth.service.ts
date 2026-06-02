@@ -105,6 +105,7 @@ export class AuthService {
         role: user.rol,   // "role" para compatibilidad exacta con el frontend
         rol: user.rol,    // "rol" también, para consistencia con el mock
         nombre: user.nombre,
+        avatarUrl: user.avatarUrl,
         loggedAt: new Date().getTime(),
       },
     };
@@ -125,9 +126,40 @@ export class AuthService {
         rol: true,
         telefono: true,
         direccion: true,
+        avatarUrl: true,
+        descripcion: true,
         createdAt: true,
       },
     });
     return user;
+  }
+
+  /**
+   * PUT /auth/me
+   * Actualiza el perfil del usuario autenticado
+   */
+  async updateProfile(userId: number, data: any) {
+    const user = await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        avatarUrl: data.avatarUrl !== undefined ? data.avatarUrl : undefined,
+        nombre: data.nombre !== undefined ? data.nombre : undefined,
+        apellido: data.apellido !== undefined ? data.apellido : undefined,
+        descripcion: data.descripcion !== undefined ? data.descripcion : undefined,
+      },
+      select: {
+        id: true,
+        nombre: true,
+        apellido: true,
+        email: true,
+        rol: true,
+        telefono: true,
+        direccion: true,
+        avatarUrl: true,
+        descripcion: true,
+        createdAt: true,
+      },
+    });
+    return { success: true, user };
   }
 }
