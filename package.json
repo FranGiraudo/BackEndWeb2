@@ -85,6 +85,12 @@
     "coverageDirectory": "../coverage",
     "testEnvironment": "node"
   },
+  "optionalDependencies": {
+    "@emnapi/core": "1.10.0",
+    "@emnapi/runtime": "1.10.0",
+    "@img/sharp-linux-x64": "0.34.5",
+    "@img/sharp-linuxmusl-x64": "0.34.5"
+  },
   "prisma": {
     "seed": "ts-node prisma/seed.ts"
   }
