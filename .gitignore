@@ -1,1 +1,27 @@
-node_modules
+# Dependencias
+node_modules/
+
+# Build compilado — se genera con npm run build
+dist/
+
+# Variables de entorno — nunca commitear secrets
+.env
+.env.local
+.env.production
+
+# Archivos subidos por usuarios
+uploads/
+
+# Cobertura de tests
+coverage/
+
+# Logs
+*.log
+npm-debug.log*
+
+# Scripts de debug temporales
+test-db.js
+test-cars.js
+
+# Editor
+.DS_Store

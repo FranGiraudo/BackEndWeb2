@@ -8,67 +8,23 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CreateCarDto } from './dto/create-car.dto';
 import { UpdateCarDto } from './dto/update-car.dto';
 import { FilterCarsDto } from './dto/filter-cars.dto';
+import { formatCar } from './car.formatter';
 
 @Injectable()
 export class CarsService {
   constructor(private prisma: PrismaService) {}
 
   /**
-   * Transforma un objeto Car de Prisma al formato exacto que espera el frontend.
-   * El frontend usa: id, brand, model, year, price, km, image, images,
-   * fuel, transmission, location, bodyType, description.
-   */
-  private formatCar(car: any) {
-    const imageUrls = car.images?.map((img: any) => img.url) || [];
-    const primaryImage =
-      car.images?.find((img: any) => img.isPrimary)?.url ||
-      imageUrls[0] ||
-      null;
-
-    return {
-      id: car.id,
-      brand: car.brand,
-      model: car.model,
-      year: car.year,
-      price: car.price,
-      km: car.km,
-      bodyType: car.bodyType,
-      location: car.location,
-      transmission: car.transmission,
-      fuel: car.fuel,
-      description: car.description,
-      image: primaryImage,
-      images: imageUrls,
-      // Datos de IA
-      aiStatus: car.aiStatus,
-      aiDamages: car.aiDamages,
-      aiPriceMin: car.aiPriceMin,
-      aiPriceMax: car.aiPriceMax,
-      // Analytics
-      views: car.views,
-      contacts: car.contacts,
-      // Info del vendedor
-      sellerId: car.sellerId,
-      sellerEmail: car.seller?.email,
-      sellerName: car.seller ? `${car.seller.nombre} ${car.seller.apellido}` : null,
-      createdAt: car.createdAt,
-    };
-  }
-
-  /**
    * GET /api/cars
    * Devuelve todos los vehículos activos con filtros opcionales.
-   * Soporta: brand, model, location, year, price, km, fuel, transmission, bodyType
    */
   async findAll(filters: FilterCarsDto) {
     const where: any = { isActive: true };
 
-    // Filtro por vendedor específico
     if (filters.sellerId) {
       where.sellerId = parseInt(filters.sellerId);
     }
 
-    // Filtros de texto (búsqueda parcial, insensible a mayúsculas)
     if (filters.search) {
       where.OR = [
         { brand: { contains: filters.search, mode: 'insensitive' } },
@@ -88,7 +44,6 @@ export class CarsService {
       where.location = { contains: filters.location, mode: 'insensitive' };
     }
 
-    // Filtros de rango numérico
     if (filters.yearMin || filters.yearMax) {
       where.year = {};
       if (filters.yearMin) where.year.gte = parseInt(filters.yearMin);
@@ -107,7 +62,6 @@ export class CarsService {
       if (filters.kmMax) where.km.lte = parseInt(filters.kmMax);
     }
 
-    // Filtros de categoría (ignorar si es "all")
     if (filters.body && filters.body !== 'all') {
       where.bodyType = { contains: filters.body, mode: 'insensitive' };
     }
@@ -117,26 +71,27 @@ export class CarsService {
     }
 
     if (filters.transmission && filters.transmission !== 'all') {
-      where.transmission = { contains: filters.transmission, mode: 'insensitive' };
+      where.transmission = {
+        contains: filters.transmission,
+        mode: 'insensitive',
+      };
     }
 
     const cars = await this.prisma.car.findMany({
       where,
       include: {
         images: { orderBy: { isPrimary: 'desc' } },
-        seller: {
-          select: { email: true, nombre: true, apellido: true },
-        },
+        seller: { select: { email: true, nombre: true, apellido: true } },
       },
       orderBy: { createdAt: 'desc' },
     });
 
-    return cars.map((car) => this.formatCar(car));
+    return cars.map(formatCar);
   }
 
   /**
    * GET /api/cars/:id
-   * Devuelve el detalle completo de un vehículo y registra la visita.
+   * Devuelve el detalle de un vehículo y registra la visita.
    */
   async findOne(id: number) {
     const car = await this.prisma.car.findFirst({
@@ -144,7 +99,12 @@ export class CarsService {
       include: {
         images: { orderBy: { isPrimary: 'desc' } },
         seller: {
-          select: { email: true, nombre: true, apellido: true, telefono: true },
+          select: {
+            email: true,
+            nombre: true,
+            apellido: true,
+            telefono: true,
+          },
         },
       },
     });
@@ -153,18 +113,17 @@ export class CarsService {
       throw new NotFoundException(`Vehículo con ID ${id} no encontrado.`);
     }
 
-    // Registrar visita (equivalente a trackMetric del frontend)
     await this.prisma.car.update({
       where: { id },
       data: { views: { increment: 1 } },
     });
 
-    return this.formatCar(car);
+    return formatCar(car);
   }
 
   /**
    * POST /api/cars
-   * Crea una nueva publicación de vehículo. Solo para vendedores.
+   * Crea una nueva publicación. Solo para vendedores.
    */
   async create(dto: CreateCarDto, sellerId: number) {
     const car = await this.prisma.car.create({
@@ -184,7 +143,6 @@ export class CarsService {
         aiPriceMin: dto.aiPriceMin,
         aiPriceMax: dto.aiPriceMax,
         sellerId,
-        // Crear registros de imagen asociados
         images: dto.images?.length
           ? {
               create: dto.images.map((url, index) => ({
@@ -201,15 +159,18 @@ export class CarsService {
       },
     });
 
-    return this.formatCar(car);
+    return formatCar(car);
   }
 
   /**
    * PUT /api/cars/:id
-   * Actualiza una publicación. Solo puede hacerlo el vendedor dueño.
+   * Actualiza una publicación activa. Solo puede hacerlo el vendedor dueño.
    */
   async update(id: number, dto: UpdateCarDto, userId: number) {
-    const car = await this.prisma.car.findUnique({ where: { id } });
+    // Solo permite editar autos activos — evita modificar un soft-deleted
+    const car = await this.prisma.car.findFirst({
+      where: { id, isActive: true },
+    });
 
     if (!car) {
       throw new NotFoundException(`Vehículo con ID ${id} no encontrado.`);
@@ -221,7 +182,6 @@ export class CarsService {
       );
     }
 
-    // Si se envían nuevas imágenes, eliminar las anteriores y crear las nuevas
     const imageOperations: any = {};
     if (dto.images !== undefined) {
       imageOperations.deleteMany = {};
@@ -249,7 +209,9 @@ export class CarsService {
         aiDamages: dto.aiDamages,
         aiPriceMin: dto.aiPriceMin,
         aiPriceMax: dto.aiPriceMax,
-        images: Object.keys(imageOperations).length ? imageOperations : undefined,
+        images: Object.keys(imageOperations).length
+          ? imageOperations
+          : undefined,
       },
       include: {
         images: { orderBy: { isPrimary: 'desc' } },
@@ -257,7 +219,7 @@ export class CarsService {
       },
     });
 
-    return this.formatCar(updatedCar);
+    return formatCar(updatedCar);
   }
 
   /**
