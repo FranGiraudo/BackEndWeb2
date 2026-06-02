@@ -1,0 +1,183 @@
+// prisma/schema.prisma
+// Schema completo de la Plataforma SmartAuto
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================
+// ENUMS
+// ============================================================
+
+enum Role {
+  comprador
+  vendedor
+}
+
+enum FuelType {
+  Nafta
+  Diesel
+  GNC
+  Hibrido
+  Electrico
+}
+
+enum TransmissionType {
+  Manual
+  Automatica
+}
+
+enum BodyType {
+  Sedan
+  Hatchback
+  SUV_Crossover
+  Pickup
+  Coupe
+  Convertible
+  Wagon
+}
+
+enum AiStatus {
+  Excelente_estado
+  Buen_estado
+  Estado_regular
+  Requiere_reparacion
+}
+
+// ============================================================
+// MODELOS
+// ============================================================
+
+model User {
+  id           Int       @id @default(autoincrement())
+  nombre       String
+  apellido     String
+  dni          String    @unique
+  telefono     String?
+  direccion    String?
+  email        String    @unique
+  passwordHash String
+  rol          Role      @default(comprador)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  // Relaciones
+  cars         Car[]       @relation("SellerCars")
+  sentInquiries    Inquiry[]   @relation("BuyerInquiries")
+  receivedInquiries Inquiry[]  @relation("SellerInquiries")
+  favorites    Favorite[]
+  replies      Reply[]
+
+  @@map("users")
+}
+
+model Car {
+  id           Int      @id @default(autoincrement())
+  brand        String
+  model        String
+  year         Int
+  price        Float
+  km           Int
+  bodyType     String   // Guardamos el string para no romper compatibilidad con el frontend
+  location     String
+  transmission String
+  fuel         String
+  description  String?  @db.Text
+  
+  // Campos de análisis IA
+  aiStatus     String?  // "Excelente estado" | "Buen estado" | "Estado regular" | "Requiere reparación"
+  aiDamages    String?
+  aiPriceMin   Float?
+  aiPriceMax   Float?
+
+  // Analytics embebidos (desnormalizados para consulta rápida)
+  views        Int      @default(0)
+  contacts     Int      @default(0)
+
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Relaciones
+  sellerId     Int
+  seller       User     @relation("SellerCars", fields: [sellerId], references: [id], onDelete: Cascade)
+  images       Image[]
+  inquiries    Inquiry[]
+  favorites    Favorite[]
+
+  @@map("cars")
+}
+
+model Image {
+  id        Int      @id @default(autoincrement())
+  url       String
+  filename  String
+  isPrimary Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  // Relaciones
+  carId     Int
+  car       Car      @relation(fields: [carId], references: [id], onDelete: Cascade)
+
+  @@map("images")
+}
+
+model Inquiry {
+  id            Int      @id @default(autoincrement())
+  text          String   @db.Text
+  senderName    String
+  markedAsReadBy String?  // 'vendedor' | 'comprador'
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Relaciones
+  carId         Int
+  car           Car      @relation(fields: [carId], references: [id], onDelete: Cascade)
+  
+  senderId      Int
+  sender        User     @relation("BuyerInquiries", fields: [senderId], references: [id])
+  
+  sellerId      Int
+  seller        User     @relation("SellerInquiries", fields: [sellerId], references: [id])
+  
+  replies       Reply[]
+
+  @@map("inquiries")
+}
+
+model Reply {
+  id          Int      @id @default(autoincrement())
+  text        String   @db.Text
+  senderName  String
+  senderRole  String   // 'vendedor' | 'comprador'
+  createdAt   DateTime @default(now())
+
+  // Relaciones
+  inquiryId   Int
+  inquiry     Inquiry  @relation(fields: [inquiryId], references: [id], onDelete: Cascade)
+  
+  senderId    Int
+  sender      User     @relation(fields: [senderId], references: [id])
+
+  @@map("replies")
+}
+
+model Favorite {
+  id        Int      @id @default(autoincrement())
+  createdAt DateTime @default(now())
+
+  // Relaciones
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  carId     Int
+  car       Car      @relation(fields: [carId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, carId]) // Un usuario no puede tener el mismo auto dos veces como favorito
+  @@map("favorites")
+}
