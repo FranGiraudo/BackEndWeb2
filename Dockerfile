@@ -14,7 +14,7 @@ RUN npx prisma generate
 # Compilar TypeScript directamente sin nest CLI
 RUN node_modules/.bin/tsc -p tsconfig.build.json
 
-RUN ls dist/main.js
+RUN ls dist/main.js || ls dist/src/main.js
 
 EXPOSE 3000
 
