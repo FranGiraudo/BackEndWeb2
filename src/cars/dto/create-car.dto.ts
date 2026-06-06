@@ -50,6 +50,23 @@ export class CreateCarDto {
   @IsString()
   description?: string;
 
+  @IsOptional()
+  @IsString()
+  color?: string;
+
+  @IsOptional()
+  @IsNumber()
+  @Type(() => Number)
+  doors?: number;
+
+  @IsOptional()
+  @IsString()
+  engine?: string;
+
+  @IsOptional()
+  @IsString()
+  status?: string;
+
   // Campos IA — vienen del endpoint upload-images previo
   @IsOptional()
   @IsString()

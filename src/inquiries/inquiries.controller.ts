@@ -76,6 +76,17 @@ export class InquiriesController {
     return this.inquiriesService.markAsRead(id, req.user.id, req.user.rol);
   }
 
+  @Post(':id/status')
+  @UseGuards(RolesGuard)
+  @Roles('vendedor')
+  updateStatus(
+    @Param('id', ParseIntPipe) id: number,
+    @Body('status') status: string,
+    @Request() req,
+  ) {
+    return this.inquiriesService.updateStatus(id, status, req.user.id);
+  }
+
   @Delete(':id')
   remove(@Param('id', ParseIntPipe) id: number, @Request() req) {
     return this.inquiriesService.remove(id, req.user.id);

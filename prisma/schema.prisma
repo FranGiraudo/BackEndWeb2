@@ -90,6 +90,10 @@ model Car {
   transmission String
   fuel         String
   description  String?  @db.Text
+  color        String?
+  doors        Int?
+  engine       String?
+  status       String   @default("Disponible") // Disponible, Reservado, Vendido
   
   // Campos de análisis IA
   aiStatus     String?  // "Excelente estado" | "Buen estado" | "Estado regular" | "Requiere reparación"
@@ -135,6 +139,7 @@ model Inquiry {
   text          String   @db.Text
   senderName    String
   markedAsReadBy String?  // 'vendedor' | 'comprador'
+  status        String   @default("Nuevo") // Nuevo, En Negociacion, Vendido, Descartado
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 

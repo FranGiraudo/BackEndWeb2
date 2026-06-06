@@ -137,6 +137,10 @@ export class CarsService {
         transmission: dto.transmission,
         location: dto.location,
         description: dto.description,
+        color: dto.color,
+        doors: dto.doors,
+        engine: dto.engine,
+        status: dto.status || 'Disponible',
         bodyType: dto.bodyType || 'Sedán',
         aiStatus: dto.aiStatus,
         aiDamages: dto.aiDamages,
@@ -205,6 +209,10 @@ export class CarsService {
         transmission: dto.transmission,
         location: dto.location,
         description: dto.description,
+        color: dto.color,
+        doors: dto.doors,
+        engine: dto.engine,
+        status: dto.status,
         bodyType: dto.bodyType,
         aiStatus: dto.aiStatus,
         aiDamages: dto.aiDamages,
@@ -229,7 +237,9 @@ export class CarsService {
    * Soft delete: marca el vehículo como inactivo. Solo el dueño puede hacerlo.
    */
   async remove(id: number, userId: number) {
-    const car = await this.prisma.car.findUnique({ where: { id } });
+    const car = await this.prisma.car.findFirst({
+      where: { id, isActive: true },
+    });
 
     if (!car) {
       throw new NotFoundException(`Vehículo con ID ${id} no encontrado.`);
@@ -237,7 +247,7 @@ export class CarsService {
 
     if (car.sellerId !== userId) {
       throw new ForbiddenException(
-        'No tenés permiso para eliminar este vehículo.',
+        'No podés eliminar una publicación que no es tuya.',
       );
     }
 
@@ -246,6 +256,22 @@ export class CarsService {
       data: { isActive: false },
     });
 
-    return { success: true, message: 'Vehículo eliminado correctamente.' };
+    return { success: true, message: 'Publicación eliminada correctamente.' };
+  }
+
+  async updateStatus(id: number, status: string, userId: number) {
+    const car = await this.prisma.car.findFirst({
+      where: { id, isActive: true },
+    });
+
+    if (!car) throw new NotFoundException(`Vehículo no encontrado.`);
+    if (car.sellerId !== userId) throw new ForbiddenException('No autorizado.');
+
+    await this.prisma.car.update({
+      where: { id },
+      data: { status },
+    });
+
+    return { success: true, message: `Estado actualizado a ${status}` };
   }
 }

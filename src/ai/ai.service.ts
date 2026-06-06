@@ -26,27 +26,40 @@ export class AiService {
     brand: string,
     model: string,
     price: number,
-    files: Array<{ buffer: Buffer; mimetype: string }>,
+    files: Express.Multer.File[],
+    year: number = 2020,
+    km: number = 0,
+    color: string = 'No especificado',
+    doors: number = 5,
+    engine: string = 'No especificado'
   ): Promise<AiAnalysisResult> {
     try {
       this.logger.log(`Enviando ${files.length} imágenes a Gemini para análisis...`);
 
       // Preparamos las partes con las imágenes
-      const imageParts = files.map(file => ({
+      const imageParts = files.map((f) => ({
         inlineData: {
-          data: file.buffer.toString('base64'),
-          mimeType: file.mimetype,
-        }
+          data: f.buffer.toString('base64'),
+          mimeType: f.mimetype,
+        },
       }));
 
       const promptText = `
 Eres un tasador experto de vehículos usados y un analista del mercado automotor en Argentina.
 Analiza detenidamente las imágenes provistas de este ${brand} ${model}.
-Infiere el tipo de carrocería, estado general, daños visibles, y estima un rango de precio en dólares para un auto de la marca y modelo indicados.
+Infiere el tipo de carrocería, estado general, daños visibles, y estima un rango de precio en dólares para un auto con las siguientes características:
+- Marca: ${brand}
+- Modelo: ${model}
+- Año: ${year}
+- Kilómetros: ${km} km
+- Color: ${color}
+- Puertas: ${doors}
+- Motor: ${engine}
+
 También debes evaluar qué tan buena "oportunidad" es esta publicación y asignarle un puntaje del 1 al 100 ("aiScore"), donde 100 es una ganga espectacular o un auto impecable a gran precio, y 1 es un vehículo muy deteriorado o extremadamente caro para su estado.
 
-Debes conectarte a internet (Google Search) para buscar e investigar el precio de venta actual en el mercado de Argentina para un ${brand} ${model} usado.
-IGNORA el precio referencial ingresado por el usuario ($${price}) para la tasación final, utilizá EXCLUSIVAMENTE los precios reales que encuentres en internet en Argentina para ese modelo.
+Debes conectarte a internet (Google Search) para buscar e investigar el precio de venta actual en el mercado de Argentina para un ${brand} ${model} año ${year} usado.
+IGNORA el precio referencial ingresado por el usuario ($${price}) para la tasación final, utilizá EXCLUSIVAMENTE los precios reales que encuentres en internet en Argentina para ese modelo y año.
 
 MUY IMPORTANTE: Los precios que devuelvas (aiPriceMin y aiPriceMax) DEBEN estar EXPRESADOS ESTRICTAMENTE EN DÓLARES ESTADOUNIDENSES (USD). 
 Si al buscar en internet encuentras precios publicados en Pesos Argentinos (ARS) en el rango de los millones, DEBES convertirlos a dólares (asume 1 USD = 1100 ARS aproximadamente) antes de generar el número final.
