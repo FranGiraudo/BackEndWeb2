@@ -8,6 +8,7 @@ export interface AiAnalysisResult {
   aiDamages: string;
   aiPriceMin: number;
   aiPriceMax: number;
+  aiScore?: number;
 }
 
 @Injectable()
