@@ -142,6 +142,7 @@ export class CarsService {
         aiDamages: dto.aiDamages,
         aiPriceMin: dto.aiPriceMin,
         aiPriceMax: dto.aiPriceMax,
+        aiScore: dto.aiScore,
         sellerId,
         images: dto.images?.length
           ? {
@@ -209,6 +210,7 @@ export class CarsService {
         aiDamages: dto.aiDamages,
         aiPriceMin: dto.aiPriceMin,
         aiPriceMax: dto.aiPriceMax,
+        aiScore: dto.aiScore,
         images: Object.keys(imageOperations).length
           ? imageOperations
           : undefined,

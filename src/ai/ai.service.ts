@@ -40,22 +40,25 @@ export class AiService {
       }));
 
       const promptText = `
-Eres un tasador experto de vehículos usados y un analista del mercado automotor.
+Eres un tasador experto de vehículos usados y un analista del mercado automotor en Argentina.
 Analiza detenidamente las imágenes provistas de este ${brand} ${model}.
-Debes conectarte a internet (Google Search) para buscar e investigar el precio de venta actual en el mercado de Argentina para un ${brand} ${model} usado (buscá en Mercado Libre Argentina u otros sitios de clasificados).
+Infiere el tipo de carrocería, estado general, daños visibles, y estima un rango de precio en dólares para un auto de la marca y modelo indicados.
+También debes evaluar qué tan buena "oportunidad" es esta publicación y asignarle un puntaje del 1 al 100 ("aiScore"), donde 100 es una ganga espectacular o un auto impecable a gran precio, y 1 es un vehículo muy deteriorado o extremadamente caro para su estado.
+
+Debes conectarte a internet (Google Search) para buscar e investigar el precio de venta actual en el mercado de Argentina para un ${brand} ${model} usado.
 IGNORA el precio referencial ingresado por el usuario ($${price}) para la tasación final, utilizá EXCLUSIVAMENTE los precios reales que encuentres en internet en Argentina para ese modelo.
-Tu trabajo es confirmar el estado real visual y establecer un precio basado en el mercado real, ajustado por los daños que veas.
 
 MUY IMPORTANTE: Los precios que devuelvas (aiPriceMin y aiPriceMax) DEBEN estar EXPRESADOS ESTRICTAMENTE EN DÓLARES ESTADOUNIDENSES (USD). 
-Si al buscar en internet (como en Mercado Libre) encuentras precios publicados en Pesos Argentinos (ARS) en el rango de los millones (ej: $15.000.000), DEBES convertirlos a dólares (asume 1 USD = 1100 ARS aproximadamente) antes de generar el número final. Por ejemplo, si el auto vale 11.000.000 ARS, debes devolver 10000. Nunca devuelvas un precio en millones.
+Si al buscar en internet encuentras precios publicados en Pesos Argentinos (ARS) en el rango de los millones, DEBES convertirlos a dólares (asume 1 USD = 1100 ARS aproximadamente) antes de generar el número final.
 
-Debes devolver EXCLUSIVAMENTE un objeto JSON válido con la siguiente estructura (sin markdown adicional, solo el JSON):
+Devuelve EXCLUSIVAMENTE un JSON con esta estructura exacta y sin formato extra:
 {
-  "bodyType": "...", // Valores permitidos: "Sedán", "Hatchback", "SUV / Crossover", "Pickup", "Coupe", "Convertible", "Wagon". Si no estás seguro, usa "Sedán".
-  "aiStatus": "...", // Valores permitidos exactos: "Excelente estado", "Buen estado", "Estado regular", "Requiere reparación". Elige uno basado estrictamente en los daños o desgaste que veas.
-  "aiDamages": "...", // Descripción concisa de los daños visibles (ej: "Rayón en puerta trasera", "Abolladura leve", "Pintura desgastada"). Si no hay, pon "Ninguno detectado".
-  "aiPriceMin": 0, // Precio mínimo sugerido en USD (entero numérico). Basado en tu búsqueda de internet, descontando daños.
-  "aiPriceMax": 0 // Precio máximo sugerido en USD (entero numérico). Basado en tu búsqueda de internet.
+  "bodyType": "Sedán", // Opciones: Sedán, Hatchback, SUV / Crossover, Pickup, Coupe, Convertible, Wagon
+  "aiStatus": "Buen estado", // Opciones: Excelente estado, Buen estado, Estado regular, Requiere reparación
+  "aiDamages": "Descripción corta de problemas deducidos (o 'Ninguno detectado')",
+  "aiPriceMin": 0,
+  "aiPriceMax": 0,
+  "aiScore": 0
 }
 `;
 
