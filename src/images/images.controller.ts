@@ -80,11 +80,11 @@ export class ImagesController {
       files.map((file) => this.imagesService.convertAndUpload(file.buffer)),
     );
 
-    const aiAnalysis = this.aiService.analyzeVehicle(
+    const aiAnalysis = await this.aiService.analyzeVehicle(
       brand,
       model,
       parseFloat(price) || 10000,
-      files.length,
+      files,
     );
 
     return {
