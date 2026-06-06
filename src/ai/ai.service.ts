@@ -97,4 +97,50 @@ Debes devolver EXCLUSIVAMENTE un objeto JSON válido con la siguiente estructura
       };
     }
   }
+
+  async compareVehicles(cars: any[]): Promise<{ recommendation: string }> {
+    try {
+      this.logger.log(`Solicitando recomendación IA para ${cars.length} vehículos...`);
+
+      const carsData = cars.map((c, index) => 
+        `Vehículo ${index + 1}: ${c.brand} ${c.model} (${c.year}) - ${c.km} km - $${c.price} - Estado: ${c.aiStatus}`
+      ).join('\n');
+
+      const promptText = `
+Eres un asesor experto en compra de vehículos usados.
+El usuario está comparando los siguientes vehículos y necesita ayuda para decidir:
+${carsData}
+
+Tu objetivo es elegir el mejor vehículo en términos de relación precio-calidad.
+Escribe un párrafo corto, amable y directo (máximo 4 líneas) dando tu veredicto final.
+Debes devolver EXCLUSIVAMENTE un JSON con la siguiente estructura:
+{
+  "recommendation": "Tu veredicto aquí..."
+}
+`;
+
+      const response = await this.ai.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: [
+          {
+            role: 'user',
+            parts: [{ text: promptText }],
+          }
+        ],
+        config: {
+          responseMimeType: "application/json"
+        }
+      });
+
+      const parsed = JSON.parse(response.text || '{}');
+      return {
+        recommendation: parsed.recommendation || "Basado en los datos, te sugiero revisar personalmente ambos vehículos para tomar la mejor decisión."
+      };
+    } catch (error) {
+      this.logger.error('Error al comparar vehículos con Gemini:', error);
+      return {
+        recommendation: "El servicio de Inteligencia Artificial no está disponible en este momento para hacer la recomendación."
+      };
+    }
+  }
 }
