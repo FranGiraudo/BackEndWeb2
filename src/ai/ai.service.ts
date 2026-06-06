@@ -132,7 +132,11 @@ Debes devolver EXCLUSIVAMENTE un JSON con la siguiente estructura:
         }
       });
 
-      const parsed = JSON.parse(response.text || '{}');
+      // Sanitizar por si Gemini devuelve markdown a pesar del mimeType
+      const rawText = response.text || '{}';
+      const cleanText = rawText.replace(/```json/g, '').replace(/```/g, '').trim();
+
+      const parsed = JSON.parse(cleanText);
       return {
         recommendation: parsed.recommendation || "Basado en los datos, te sugiero revisar personalmente ambos vehículos para tomar la mejor decisión."
       };
