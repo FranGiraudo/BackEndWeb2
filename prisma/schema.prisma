@@ -96,6 +96,7 @@ model Car {
   aiDamages    String?
   aiPriceMin   Float?
   aiPriceMax   Float?
+  aiScore      Int?     // Puntaje de oportunidad del 1 al 100
 
   // Analytics embebidos (desnormalizados para consulta rápida)
   views        Int      @default(0)

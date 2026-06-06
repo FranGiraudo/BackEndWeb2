@@ -73,6 +73,11 @@ export class CreateCarDto {
   @Type(() => Number)
   aiPriceMax?: number;
 
+  @IsOptional()
+  @IsNumber()
+  @Type(() => Number)
+  aiScore?: number;
+
   // URLs de imágenes ya subidas previamente con POST /cars/upload-images
   @IsOptional()
   images?: string[];
