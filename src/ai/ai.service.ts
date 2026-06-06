@@ -107,12 +107,14 @@ Debes devolver EXCLUSIVAMENTE un objeto JSON válido con la siguiente estructura
       ).join('\n');
 
       const promptText = `
-Eres un asesor experto en compra de vehículos usados.
+Eres un asesor experto en compra de vehículos usados y un gran conocedor del mercado automotor.
 El usuario está comparando los siguientes vehículos y necesita ayuda para decidir:
 ${carsData}
 
 Tu objetivo es elegir el mejor vehículo en términos de relación precio-calidad.
-Escribe un párrafo corto, amable y directo (máximo 4 líneas) dando tu veredicto final.
+MUY IMPORTANTE: No te guíes solamente por el año más nuevo o los kilómetros más bajos. Debes tener muy en cuenta el SEGMENTO y la CATEGORÍA de cada auto (por ejemplo, no es lo mismo un auto base segmento B como un Polo Track, que un auto de gama media/alta segmento C o D como un Vento o un Passat). Evalúa la calidad de construcción, equipamiento, motorización y confort inherente a cada modelo al compararlos.
+
+Escribe un párrafo corto, amable y directo (máximo 4 líneas) dando tu veredicto final sobre cuál es la mejor opción contemplando la jerarquía de los vehículos.
 Debes devolver EXCLUSIVAMENTE un JSON con la siguiente estructura:
 {
   "recommendation": "Tu veredicto aquí..."
