@@ -1,5 +1,6 @@
 // src/ai/ai.service.ts
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
+import { GoogleGenAI } from '@google/genai';
 
 export interface AiAnalysisResult {
   bodyType: string;
@@ -9,94 +10,84 @@ export interface AiAnalysisResult {
   aiPriceMax: number;
 }
 
-/**
- * AiService — Servicio de Análisis de Imágenes con IA
- *
- * En este entorno simula el análisis. En producción, esta lógica
- * se reemplaza con una llamada a la API de Gemini Vision o similar.
- *
- * La lógica de detección de carrocería replica exactamente la del
- * frontend (publish.js) para mantener consistencia.
- */
 @Injectable()
 export class AiService {
+  private readonly logger = new Logger(AiService.name);
+  private readonly ai: GoogleGenAI;
+
+  constructor() {
+    this.ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+  }
+
   /**
-   * Analiza imágenes de un vehículo y devuelve:
-   * - Tipo de carrocería detectada
-   * - Estado general del vehículo
-   * - Daños visibles
-   * - Rango de precio sugerido
-   *
-   * @param brand  - Marca del vehículo
-   * @param model  - Modelo del vehículo
-   * @param price  - Precio ingresado por el vendedor (para calcular el rango)
-   * @param imageCount - Cantidad de imágenes subidas
+   * Analiza imágenes de un vehículo usando Gemini 2.5 Flash y devuelve un JSON estructurado.
    */
-  analyzeVehicle(
+  async analyzeVehicle(
     brand: string,
     model: string,
     price: number,
-    imageCount: number,
-  ): AiAnalysisResult {
-    const textoBusqueda = `${brand} ${model}`.toLowerCase();
+    files: Array<{ buffer: Buffer; mimetype: string }>,
+  ): Promise<AiAnalysisResult> {
+    try {
+      this.logger.log(`Enviando ${files.length} imágenes a Gemini para análisis...`);
 
-    // ================================================================
-    // DETECCIÓN DE CARROCERÍA
-    // Diccionario de palabras clave por categoría (igual al frontend)
-    // ================================================================
-    const diccionarios: Record<string, string[]> = {
-      Hatchback: ['golf', '208', '308', 'onix', 'sandero', 'etios', 'fiesta', 'focus', 'argo', 'mobi', 'kwid', 'up'],
-      'SUV / Crossover': ['sw4', 'crv', 'tracker', 'renegade', 'duster', 'kicks', 't-cross', 'nivus', 'compass', 'hrv', 'ecosport', 'taos', 'corolla cross'],
-      Pickup: ['hilux', 'amarok', 'ranger', 'frontier', 'toro', 'oroch', 's10', 'f150', 'ram', 'saveiro', 'strada'],
-      Sedán: ['corolla', 'cruze', 'cronos', 'virtus', 'yaris', 'civic', 'sentra', 'logan', 'prisma'],
-    };
+      // Preparamos las partes con las imágenes
+      const imageParts = files.map(file => ({
+        inlineData: {
+          data: file.buffer.toString('base64'),
+          mimeType: file.mimetype,
+        }
+      }));
 
-    let bodyType = 'Sedán'; // Default
-    for (const [categoria, palabras] of Object.entries(diccionarios)) {
-      if (palabras.some((p) => textoBusqueda.includes(p))) {
-        bodyType = categoria;
-        break;
-      }
+      const promptText = `
+Eres un tasador experto de vehículos usados. Analiza detenidamente las imágenes provistas de este ${brand} ${model}.
+El vendedor ingresó un precio referencial de $${price}. Tu trabajo es confirmar el estado real.
+
+Debes devolver EXCLUSIVAMENTE un objeto JSON válido con la siguiente estructura (sin markdown adicional, solo el JSON):
+{
+  "bodyType": "...", // Valores permitidos: "Sedán", "Hatchback", "SUV / Crossover", "Pickup", "Coupe", "Convertible", "Wagon". Si no estás seguro, usa "Sedán".
+  "aiStatus": "...", // Valores permitidos exactos: "Excelente estado", "Buen estado", "Estado regular", "Requiere reparación". Elige uno basado estrictamente en los daños o desgaste que veas.
+  "aiDamages": "...", // Descripción concisa de los daños visibles (ej: "Rayón en puerta trasera", "Abolladura leve", "Pintura desgastada"). Si no hay, pon "Ninguno detectado".
+  "aiPriceMin": 0, // Precio mínimo sugerido (entero numérico). Basate en el precio referencial pero ajustalo según el daño.
+  "aiPriceMax": 0 // Precio máximo sugerido (entero numérico).
+}
+`;
+
+      const response = await this.ai.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: [
+          {
+            role: 'user',
+            parts: [...imageParts, { text: promptText }],
+          }
+        ],
+        config: {
+          responseMimeType: "application/json"
+        }
+      });
+
+      const responseText = response.text;
+      const parsed = JSON.parse(responseText || '{}');
+
+      return {
+        bodyType: parsed.bodyType || 'Sedán',
+        aiStatus: parsed.aiStatus || 'Buen estado',
+        aiDamages: parsed.aiDamages || 'No analizado',
+        aiPriceMin: parsed.aiPriceMin || Math.round(price * 0.9),
+        aiPriceMax: parsed.aiPriceMax || Math.round(price * 1.1),
+      };
+
+    } catch (error) {
+      this.logger.error('Error al analizar vehículo con Gemini:', error);
+      
+      // Fallback seguro en caso de error para no bloquear la publicación
+      return {
+        bodyType: 'Sedán',
+        aiStatus: 'Buen estado',
+        aiDamages: 'Análisis IA no disponible temporalmente',
+        aiPriceMin: Math.round(price * 0.9),
+        aiPriceMax: Math.round(price * 1.1),
+      };
     }
-
-    // ================================================================
-    // ESTIMACIÓN DE ESTADO
-    // En producción: análisis real de las imágenes con Gemini Vision API
-    // Aquí: lógica determinista basada en cantidad de fotos y precio
-    // ================================================================
-    const estados = [
-      'Excelente estado',
-      'Buen estado',
-      'Estado regular',
-      'Requiere reparación',
-    ];
-
-    // Simulación determinista: más fotos → indica más confianza → mejor score
-    let aiStatus: string;
-    if (imageCount >= 5) aiStatus = estados[0];
-    else if (imageCount >= 3) aiStatus = estados[1];
-    else if (imageCount >= 2) aiStatus = estados[2];
-    else aiStatus = estados[3];
-
-    const aiDamages =
-      aiStatus === 'Excelente estado'
-        ? 'Ninguno detectado'
-        : aiStatus === 'Buen estado'
-          ? 'Leves marcas de uso normal'
-          : 'Leves rayones en paragolpes y carrocería';
-
-    // ================================================================
-    // RANGO DE PRECIO SUGERIDO (±15% del precio ingresado)
-    // ================================================================
-    const aiPriceMin = Math.round(price * 0.85);
-    const aiPriceMax = Math.round(price * 1.15);
-
-    return {
-      bodyType,
-      aiStatus,
-      aiDamages,
-      aiPriceMin,
-      aiPriceMax,
-    };
   }
 }
