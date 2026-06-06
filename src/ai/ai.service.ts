@@ -46,13 +46,16 @@ Debes conectarte a internet (Google Search) para buscar e investigar el precio d
 IGNORA el precio referencial ingresado por el usuario ($${price}) para la tasación final, utilizá EXCLUSIVAMENTE los precios reales que encuentres en internet en Argentina para ese modelo.
 Tu trabajo es confirmar el estado real visual y establecer un precio basado en el mercado real, ajustado por los daños que veas.
 
+MUY IMPORTANTE: Los precios que devuelvas (aiPriceMin y aiPriceMax) DEBEN estar EXPRESADOS ESTRICTAMENTE EN DÓLARES ESTADOUNIDENSES (USD). 
+Si al buscar en internet (como en Mercado Libre) encuentras precios publicados en Pesos Argentinos (ARS) en el rango de los millones (ej: $15.000.000), DEBES convertirlos a dólares (asume 1 USD = 1100 ARS aproximadamente) antes de generar el número final. Por ejemplo, si el auto vale 11.000.000 ARS, debes devolver 10000. Nunca devuelvas un precio en millones.
+
 Debes devolver EXCLUSIVAMENTE un objeto JSON válido con la siguiente estructura (sin markdown adicional, solo el JSON):
 {
   "bodyType": "...", // Valores permitidos: "Sedán", "Hatchback", "SUV / Crossover", "Pickup", "Coupe", "Convertible", "Wagon". Si no estás seguro, usa "Sedán".
   "aiStatus": "...", // Valores permitidos exactos: "Excelente estado", "Buen estado", "Estado regular", "Requiere reparación". Elige uno basado estrictamente en los daños o desgaste que veas.
   "aiDamages": "...", // Descripción concisa de los daños visibles (ej: "Rayón en puerta trasera", "Abolladura leve", "Pintura desgastada"). Si no hay, pon "Ninguno detectado".
-  "aiPriceMin": 0, // Precio mínimo sugerido (entero numérico). Basado en tu búsqueda de internet del mercado argentino para este modelo, descontando daños.
-  "aiPriceMax": 0 // Precio máximo sugerido (entero numérico). Basado en tu búsqueda de internet.
+  "aiPriceMin": 0, // Precio mínimo sugerido en USD (entero numérico). Basado en tu búsqueda de internet, descontando daños.
+  "aiPriceMax": 0 // Precio máximo sugerido en USD (entero numérico). Basado en tu búsqueda de internet.
 }
 `;
 
