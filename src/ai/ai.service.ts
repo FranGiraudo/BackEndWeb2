@@ -40,16 +40,19 @@ export class AiService {
       }));
 
       const promptText = `
-Eres un tasador experto de vehículos usados. Analiza detenidamente las imágenes provistas de este ${brand} ${model}.
-El vendedor ingresó un precio referencial de $${price}. Tu trabajo es confirmar el estado real.
+Eres un tasador experto de vehículos usados y un analista del mercado automotor.
+Analiza detenidamente las imágenes provistas de este ${brand} ${model}.
+Debes conectarte a internet (Google Search) para buscar e investigar el precio de venta actual en el mercado de Argentina para un ${brand} ${model} usado (buscá en Mercado Libre Argentina u otros sitios de clasificados).
+IGNORA el precio referencial ingresado por el usuario ($${price}) para la tasación final, utilizá EXCLUSIVAMENTE los precios reales que encuentres en internet en Argentina para ese modelo.
+Tu trabajo es confirmar el estado real visual y establecer un precio basado en el mercado real, ajustado por los daños que veas.
 
 Debes devolver EXCLUSIVAMENTE un objeto JSON válido con la siguiente estructura (sin markdown adicional, solo el JSON):
 {
   "bodyType": "...", // Valores permitidos: "Sedán", "Hatchback", "SUV / Crossover", "Pickup", "Coupe", "Convertible", "Wagon". Si no estás seguro, usa "Sedán".
   "aiStatus": "...", // Valores permitidos exactos: "Excelente estado", "Buen estado", "Estado regular", "Requiere reparación". Elige uno basado estrictamente en los daños o desgaste que veas.
   "aiDamages": "...", // Descripción concisa de los daños visibles (ej: "Rayón en puerta trasera", "Abolladura leve", "Pintura desgastada"). Si no hay, pon "Ninguno detectado".
-  "aiPriceMin": 0, // Precio mínimo sugerido (entero numérico). Basate en el precio referencial pero ajustalo según el daño.
-  "aiPriceMax": 0 // Precio máximo sugerido (entero numérico).
+  "aiPriceMin": 0, // Precio mínimo sugerido (entero numérico). Basado en tu búsqueda de internet del mercado argentino para este modelo, descontando daños.
+  "aiPriceMax": 0 // Precio máximo sugerido (entero numérico). Basado en tu búsqueda de internet.
 }
 `;
 
@@ -61,10 +64,11 @@ Debes devolver EXCLUSIVAMENTE un objeto JSON válido con la siguiente estructura
             parts: [...imageParts, { text: promptText }],
           }
         ],
+        tools: [{ googleSearch: {} }],
         config: {
           responseMimeType: "application/json"
         }
-      });
+      } as any);
 
       const responseText = response.text;
       const parsed = JSON.parse(responseText || '{}');
