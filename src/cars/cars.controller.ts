@@ -71,6 +71,17 @@ export class CarsController {
     return this.carsService.update(id, dto, req.user.id);
   }
 
+  @Post(':id/status')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('vendedor')
+  updateStatus(
+    @Param('id', ParseIntPipe) id: number,
+    @Body('status') status: string,
+    @Request() req,
+  ) {
+    return this.carsService.updateStatus(id, status, req.user.id);
+  }
+
   @Delete(':id')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('vendedor')

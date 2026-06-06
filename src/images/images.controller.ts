@@ -69,6 +69,11 @@ export class ImagesController {
     @Query('brand') brand: string = '',
     @Query('model') model: string = '',
     @Query('price') price: string = '10000',
+    @Query('year') year: string = '2020',
+    @Query('km') km: string = '0',
+    @Query('color') color: string = 'No especificado',
+    @Query('doors') doors: string = '5',
+    @Query('engine') engine: string = 'No especificado',
     @Request() req,
   ) {
     if (!files || files.length === 0) {
@@ -85,6 +90,11 @@ export class ImagesController {
       model,
       parseFloat(price) || 10000,
       files,
+      parseInt(year) || 2020,
+      parseInt(km) || 0,
+      color,
+      parseInt(doors) || 5,
+      engine
     );
 
     return {
@@ -99,6 +109,7 @@ export class ImagesController {
           min: aiAnalysis.aiPriceMin,
           max: aiAnalysis.aiPriceMax,
         },
+        aiScore: aiAnalysis.aiScore
       },
     };
   }

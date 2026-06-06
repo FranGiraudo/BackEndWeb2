@@ -150,6 +150,22 @@ export class InquiriesService {
     return inquiries.map((i) => this.formatInquiry(i));
   }
 
+  async updateStatus(id: number, status: string, sellerId: number) {
+    const inquiry = await this.prisma.inquiry.findUnique({
+      where: { id },
+    });
+
+    if (!inquiry) throw new NotFoundException('Consulta no encontrada');
+    if (inquiry.sellerId !== sellerId) throw new ForbiddenException('No autorizado');
+
+    await this.prisma.inquiry.update({
+      where: { id },
+      data: { status },
+    });
+
+    return { success: true, message: `Estado actualizado a ${status}` };
+  }
+
   /**
    * POST /api/inquiries/:id/reply
    * Responde a una consulta. Puede hacerlo el vendedor o el comprador.
