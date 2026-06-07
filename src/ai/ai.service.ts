@@ -60,7 +60,7 @@ Infiere el tipo de carrocería, estado general, daños visibles, y estima un ran
 También debes evaluar qué tan buena "oportunidad" es esta publicación y asignarle un puntaje del 1 al 100 ("aiScore"), donde 100 es una ganga espectacular o un auto impecable a gran precio, y 1 es un vehículo muy deteriorado o extremadamente caro para su estado.
 
 Debes conectarte a internet (Google Search) para buscar e investigar el precio de venta actual en el mercado de Argentina para un ${brand} ${model} año ${year} usado.
-IGNORA el precio referencial ingresado por el usuario ($${price}) para la tasación final, utilizá EXCLUSIVAMENTE los precios reales que encuentres en internet en Argentina para ese modelo y año.
+Utiliza el precio referencial ingresado por el usuario ($${price}) como base para tu tasación final. Debes agregar o restar valor a este precio base dependiendo del estado general deducido de las imágenes, los daños visibles, y el kilometraje (${km} km). Si el auto está en excelente estado o tiene poco kilometraje, el precio sugerido debe ser mayor. Si tiene daños o mucho kilometraje, debe ser menor.
 
 MUY IMPORTANTE: Los precios que devuelvas (aiPriceMin y aiPriceMax) DEBEN estar EXPRESADOS ESTRICTAMENTE EN DÓLARES ESTADOUNIDENSES (USD). 
 Si al buscar en internet encuentras precios publicados en Pesos Argentinos (ARS) en el rango de los millones, DEBES convertirlos a dólares (asume 1 USD = 1100 ARS aproximadamente) antes de generar el número final.

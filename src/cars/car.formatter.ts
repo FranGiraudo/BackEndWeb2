@@ -18,10 +18,15 @@ export function formatCar(car: any) {
     description: car.description,
     image: primaryImage,
     images: imageUrls,
+    color: car.color,
+    doors: car.doors,
+    engine: car.engine,
+    status: car.status,
     aiStatus: car.aiStatus,
     aiDamages: car.aiDamages,
     aiPriceMin: car.aiPriceMin,
     aiPriceMax: car.aiPriceMax,
+    aiScore: car.aiScore,
     views: car.views,
     contacts: car.contacts,
     sellerId: car.sellerId,
@@ -29,6 +34,12 @@ export function formatCar(car: any) {
     sellerName: car.seller
       ? `${car.seller.nombre} ${car.seller.apellido}`
       : null,
+    seller: car.seller ? {
+      email: car.seller.email,
+      nombre: car.seller.nombre,
+      apellido: car.seller.apellido,
+      telefono: car.seller.telefono
+    } : null,
     createdAt: car.createdAt,
   };
 }
