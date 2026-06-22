@@ -98,7 +98,7 @@ export class CarsService {
    */
   async findMyCars(sellerId: number) {
     const cars = await this.prisma.car.findMany({
-      where: { sellerId: parseInt(sellerId as any) },
+      where: { sellerId: parseInt(sellerId as any), isActive: true },
       include: {
         images: { orderBy: { isPrimary: 'desc' } },
         viewLogs: { orderBy: { date: 'asc' } },

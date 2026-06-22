@@ -52,7 +52,7 @@ export class FavoritesService {
     });
 
     return favorites
-      .filter((f) => f.car?.isActive)
+      .filter((f) => f.car) // Por las dudas aseguramos que exista
       .map((f) => formatCar(f.car));
   }
 }
