@@ -33,14 +33,7 @@ export class AuthService {
       throw new BadRequestException('Este email ya se encuentra registrado.');
     }
 
-    // Verificar si el DNI ya existe
-    const existingDni = await this.prisma.user.findUnique({
-      where: { dni: dto.dni },
-    });
-
-    if (existingDni) {
-      throw new BadRequestException('Este DNI ya se encuentra registrado.');
-    }
+    // Verificación de DNI eliminada
 
     // Hash de la contraseña con bcrypt (12 rondas de salt)
     const passwordHash = await bcrypt.hash(dto.password, 12);
@@ -49,12 +42,11 @@ export class AuthService {
       data: {
         nombre: dto.nombre,
         apellido: dto.apellido,
-        dni: dto.dni,
-        telefono: dto.telefono,
-        direccion: dto.direccion,
+        
+        
         email: dto.email,
-        passwordHash,
-        rol: dto.rol as any,
+        password: passwordHash,
+        role: dto.rol as any,
       },
     });
 
@@ -62,7 +54,7 @@ export class AuthService {
       success: true,
       user: {
         email: user.email,
-        rol: user.rol,
+        rol: user.role,
         nombre: user.nombre,
       },
     };
@@ -82,7 +74,7 @@ export class AuthService {
       throw new UnauthorizedException('Email o contraseña incorrectos.');
     }
 
-    const isPasswordValid = await bcrypt.compare(dto.password, user.passwordHash);
+    const isPasswordValid = await bcrypt.compare(dto.password, user.password);
 
     if (!isPasswordValid) {
       throw new UnauthorizedException('Email o contraseña incorrectos.');
@@ -92,7 +84,7 @@ export class AuthService {
     const payload = {
       sub: user.id,
       email: user.email,
-      rol: user.rol,
+      rol: user.role,
     };
 
     const access_token = this.jwtService.sign(payload);
@@ -102,8 +94,8 @@ export class AuthService {
       access_token,
       user: {
         email: user.email,
-        role: user.rol,   // "role" para compatibilidad exacta con el frontend
-        rol: user.rol,    // "rol" también, para consistencia con el mock
+        role: user.role,   // "role" para compatibilidad exacta con el frontend
+        rol: user.role,    // "rol" también, para consistencia con el mock
         nombre: user.nombre,
         avatarUrl: user.avatarUrl,
         loggedAt: new Date().getTime(),
@@ -123,14 +115,26 @@ export class AuthService {
         nombre: true,
         apellido: true,
         email: true,
-        rol: true,
-        telefono: true,
-        direccion: true,
+        role: true,
+        
         avatarUrl: true,
-        descripcion: true,
         createdAt: true,
       },
     });
+
+    if (user && user.role === 'vendedor') {
+      const reviewAgg = await this.prisma.review.aggregate({
+        where: { vendorId: userId },
+        _avg: { score: true },
+        _count: { score: true },
+      });
+      return {
+        ...user,
+        ratingAverage: reviewAgg._avg.score ? Number(reviewAgg._avg.score.toFixed(1)) : 0,
+        totalReviews: reviewAgg._count.score,
+      };
+    }
+
     return user;
   }
 
@@ -145,18 +149,15 @@ export class AuthService {
         avatarUrl: data.avatarUrl !== undefined ? data.avatarUrl : undefined,
         nombre: data.nombre !== undefined ? data.nombre : undefined,
         apellido: data.apellido !== undefined ? data.apellido : undefined,
-        descripcion: data.descripcion !== undefined ? data.descripcion : undefined,
       },
       select: {
         id: true,
         nombre: true,
         apellido: true,
         email: true,
-        rol: true,
-        telefono: true,
-        direccion: true,
+        role: true,
+        
         avatarUrl: true,
-        descripcion: true,
         createdAt: true,
       },
     });

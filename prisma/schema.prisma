@@ -1,6 +1,3 @@
-// prisma/schema.prisma
-// Schema completo de la Plataforma SmartAuto
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -10,70 +7,46 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// ============================================================
-// ENUMS
-// ============================================================
-
 enum Role {
   comprador
   vendedor
 }
 
-enum FuelType {
-  Nafta
-  Diesel
-  GNC
-  Hibrido
-  Electrico
+enum NotificationType {
+  NEW_INQUIRY
+  PRICE_DROP
 }
 
-enum TransmissionType {
-  Manual
-  Automatica
+enum ReportStatus {
+  PENDING
+  RESOLVED
+  REJECTED
 }
 
-enum BodyType {
-  Sedan
-  Hatchback
-  SUV_Crossover
-  Pickup
-  Coupe
-  Convertible
-  Wagon
-}
-
-enum AiStatus {
-  Excelente_estado
-  Buen_estado
-  Estado_regular
-  Requiere_reparacion
-}
-
-// ============================================================
 // MODELOS
-// ============================================================
-
 model User {
   id           Int       @id @default(autoincrement())
   nombre       String
   apellido     String
-  dni          String    @unique
-  telefono     String?
-  direccion    String?
   email        String    @unique
-  passwordHash String
-  avatarUrl    String?   @db.Text
-  descripcion  String?   @db.Text
-  rol          Role      @default(comprador)
+  password     String
+  avatarUrl    String?
+  role         Role      @default(comprador)
   createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
 
   // Relaciones
-  cars         Car[]       @relation("SellerCars")
-  sentInquiries    Inquiry[]   @relation("BuyerInquiries")
-  receivedInquiries Inquiry[]  @relation("SellerInquiries")
+  cars         Car[]     @relation("SellerCars")
+  buyerInquiries  Inquiry[]  @relation("BuyerInquiries")
+  sellerInquiries Inquiry[]  @relation("SellerInquiries")
   favorites    Favorite[]
   replies      Reply[]
+  reviewsGiven      Review[]    @relation("Reviewer")
+  reviewsReceived   Review[]    @relation("Vendor")
+  reportsMade       Report[]    @relation("Reporter")
+  searchHistories   SearchHistory[]
+  aiRecommendations AiRecommendation[]
+  bids              Bid[]
+  notifications     Notification[]
 
   @@map("users")
 }
@@ -95,6 +68,11 @@ model Car {
   engine       String?
   status       String   @default("Disponible") // Disponible, Reservado, Vendido
   
+  // Ubicacion Geografica
+  locationName String?
+  latitude     Float?
+  longitude    Float?
+
   // Campos de análisis IA
   aiStatus     String?  // "Excelente estado" | "Buen estado" | "Estado regular" | "Requiere reparación"
   aiDamages    String?
@@ -103,7 +81,7 @@ model Car {
   aiScore      Int?     // Puntaje de oportunidad del 1 al 100
 
   // Analytics embebidos (desnormalizados para consulta rápida)
-  views        Int      @default(0)
+  viewCount    Int      @default(0)
   contacts     Int      @default(0)
 
   isActive     Boolean  @default(true)
@@ -116,8 +94,23 @@ model Car {
   images       Image[]
   inquiries    Inquiry[]
   favorites    Favorite[]
+  reports      Report[]
+  auction      Auction?
+  priceHistories PriceHistory[]
+  viewLogs     CarViewLog[]
 
   @@map("cars")
+}
+
+model CarViewLog {
+  id        Int      @id @default(autoincrement())
+  carId     Int
+  car       Car      @relation(fields: [carId], references: [id], onDelete: Cascade)
+  date      DateTime @db.Date
+  views     Int      @default(0)
+
+  @@unique([carId, date])
+  @@map("car_view_logs")
 }
 
 model Image {
@@ -148,10 +141,10 @@ model Inquiry {
   car           Car      @relation(fields: [carId], references: [id], onDelete: Cascade)
   
   senderId      Int
-  sender        User     @relation("BuyerInquiries", fields: [senderId], references: [id])
+  sender        User     @relation("BuyerInquiries", fields: [senderId], references: [id], onDelete: Cascade)
   
   sellerId      Int
-  seller        User     @relation("SellerInquiries", fields: [sellerId], references: [id])
+  seller        User     @relation("SellerInquiries", fields: [sellerId], references: [id], onDelete: Cascade)
   
   replies       Reply[]
 
@@ -170,7 +163,7 @@ model Reply {
   inquiry     Inquiry  @relation(fields: [inquiryId], references: [id], onDelete: Cascade)
   
   senderId    Int
-  sender      User     @relation(fields: [senderId], references: [id])
+  sender      User     @relation(fields: [senderId], references: [id], onDelete: Cascade)
 
   @@map("replies")
 }
@@ -188,4 +181,115 @@ model Favorite {
 
   @@unique([userId, carId]) // Un usuario no puede tener el mismo auto dos veces como favorito
   @@map("favorites")
+}
+
+// Nuevos Modelos: Calificaciones y Reportes
+model Review {
+  id         Int      @id @default(autoincrement())
+  reviewerId Int
+  vendorId   Int
+  score      Int      // 1 a 5
+  comment    String?  @db.Text
+  createdAt  DateTime @default(now())
+
+  reviewer   User     @relation("Reviewer", fields: [reviewerId], references: [id], onDelete: Cascade)
+  vendor     User     @relation("Vendor", fields: [vendorId], references: [id], onDelete: Cascade)
+
+  @@unique([reviewerId, vendorId])
+  @@map("reviews")
+}
+
+model Report {
+  id          Int          @id @default(autoincrement())
+  reporterId  Int
+  carId       Int
+  reason      String
+  description String?      @db.Text
+  status      ReportStatus @default(PENDING)
+  createdAt   DateTime     @default(now())
+
+  reporter    User         @relation("Reporter", fields: [reporterId], references: [id], onDelete: Cascade)
+  car         Car          @relation(fields: [carId], references: [id], onDelete: Cascade)
+
+  @@map("reports")
+}
+
+model SearchHistory {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  queryText String
+  filters   Json?
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("search_histories")
+}
+
+model AiRecommendation {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  carIds    Int[]
+  score     Int
+  reason    String   @db.Text
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("ai_recommendations")
+}
+
+model Auction {
+  id            Int      @id @default(autoincrement())
+  carId         Int      @unique
+  startingPrice Float
+  currentPrice  Float
+  endsAt        DateTime
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  car           Car      @relation(fields: [carId], references: [id], onDelete: Cascade)
+  bids          Bid[]
+
+  @@map("auctions")
+}
+
+model Bid {
+  id        Int      @id @default(autoincrement())
+  auctionId Int
+  bidderId  Int
+  amount    Float
+  createdAt DateTime @default(now())
+
+  auction   Auction  @relation(fields: [auctionId], references: [id], onDelete: Cascade)
+  bidder    User     @relation(fields: [bidderId], references: [id], onDelete: Cascade)
+
+  @@map("bids")
+}
+
+model Notification {
+  id        Int              @id @default(autoincrement())
+  userId    Int
+  title     String
+  message   String           @db.Text
+  type      NotificationType
+  isRead    Boolean          @default(false)
+  createdAt DateTime         @default(now())
+
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("notifications")
+}
+
+model PriceHistory {
+  id        Int      @id @default(autoincrement())
+  carId     Int
+  oldPrice  Float
+  newPrice  Float
+  changedAt DateTime @default(now())
+
+  car       Car      @relation(fields: [carId], references: [id], onDelete: Cascade)
+
+  @@map("price_histories")
 }

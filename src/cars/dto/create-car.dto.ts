@@ -1,10 +1,10 @@
-// src/cars/dto/create-car.dto.ts
 import {
   IsNotEmpty,
   IsNumber,
   IsOptional,
   IsString,
   Min,
+  IsBoolean,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 
@@ -45,6 +45,20 @@ export class CreateCarDto {
   @IsNotEmpty({ message: 'La ubicación es requerida.' })
   @IsString()
   location: string;
+
+  @IsOptional()
+  @IsString()
+  locationName?: string;
+
+  @IsOptional()
+  @IsNumber()
+  @Type(() => Number)
+  latitude?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Type(() => Number)
+  longitude?: number;
 
   @IsOptional()
   @IsString()
@@ -94,6 +108,20 @@ export class CreateCarDto {
   @IsNumber()
   @Type(() => Number)
   aiScore?: number;
+
+  @IsOptional()
+  @IsBoolean()
+  isAuction?: boolean;
+
+  @IsOptional()
+  @IsNumber()
+  @Type(() => Number)
+  auctionStartingPrice?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Type(() => Number)
+  auctionDurationDays?: number;
 
   // URLs de imágenes ya subidas previamente con POST /cars/upload-images
   @IsOptional()

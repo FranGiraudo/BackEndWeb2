@@ -13,6 +13,9 @@ export function formatCar(car: any) {
     km: car.km,
     bodyType: car.bodyType,
     location: car.location,
+    locationName: car.locationName,
+    latitude: car.latitude,
+    longitude: car.longitude,
     transmission: car.transmission,
     fuel: car.fuel,
     description: car.description,
@@ -27,7 +30,8 @@ export function formatCar(car: any) {
     aiPriceMin: car.aiPriceMin,
     aiPriceMax: car.aiPriceMax,
     aiScore: car.aiScore,
-    views: car.views,
+    views: car.viewCount,
+    viewCount: car.viewCount,
     contacts: car.contacts,
     sellerId: car.sellerId,
     sellerEmail: car.seller?.email ?? null,
@@ -41,5 +45,6 @@ export function formatCar(car: any) {
       telefono: car.seller.telefono
     } : null,
     createdAt: car.createdAt,
+    auction: car.auction,
   };
 }

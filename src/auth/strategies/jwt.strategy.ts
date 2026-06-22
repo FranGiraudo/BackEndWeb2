@@ -28,6 +28,6 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     }
 
     // El objeto retornado se inyecta en request.user en todos los controllers protegidos
-    return { id: user.id, email: user.email, rol: user.rol, nombre: user.nombre };
+    return { id: user.id, email: user.email, rol: user.role, nombre: user.nombre };
   }
 }

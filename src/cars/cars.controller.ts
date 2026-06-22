@@ -40,7 +40,12 @@ export class CarsController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('vendedor')
   findMyCars(@Request() req) {
-    return this.carsService.findAll({ sellerId: String(req.user.id) });
+    return this.carsService.findMyCars(req.user.id);
+  }
+
+  @Get('trending')
+  getTrending() {
+    return this.carsService.getTrending();
   }
 
   @Get()

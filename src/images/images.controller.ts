@@ -102,6 +102,9 @@ export class ImagesController {
       images: imageUrls,
       primaryImage: imageUrls[0],
       aiAnalysis: {
+        brand: aiAnalysis.brand,
+        model: aiAnalysis.model,
+        confidence: aiAnalysis.confidence,
         bodyType: aiAnalysis.bodyType,
         aiStatus: aiAnalysis.aiStatus,
         aiDamages: aiAnalysis.aiDamages,

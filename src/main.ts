@@ -1,9 +1,13 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
+import helmet from 'helmet';
 
 async function bootstrap() {
   const application = await NestFactory.create(AppModule);
+
+  // Security Headers
+  application.use(helmet());
 
   application.enableCors({
     origin: true,

@@ -7,10 +7,14 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateInquiryDto } from './dto/create-inquiry.dto';
 import { CreateReplyDto } from './dto/create-reply.dto';
+import { NotificationsService } from '../notifications/notifications.service';
 
 @Injectable()
 export class InquiriesService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private notificationsService: NotificationsService
+  ) {}
 
   /**
    * Transforma un objeto Inquiry de Prisma al formato que espera el frontend.
@@ -99,7 +103,15 @@ export class InquiriesService {
       });
     }
 
-    // Registrar el contacto en analytics del vehículo
+    // Trigger Notification
+    await this.notificationsService.createNotification(
+      car.sellerId,
+      'Nueva Consulta Recibida',
+      `Alguien consultó por tu ${car.brand} ${car.model}.`,
+      'NEW_INQUIRY'
+    );
+
+    // Incrementar contacts
     await this.prisma.car.update({
       where: { id: dto.carId },
       data: { contacts: { increment: 1 } },
