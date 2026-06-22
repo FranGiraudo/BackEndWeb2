@@ -257,7 +257,7 @@ export class CarsService {
         });
 
         const endsAt = new Date();
-        endsAt.setDate(endsAt.getDate() + dto.auctionDurationDays!);
+        endsAt.setTime(endsAt.getTime() + dto.auctionDurationDays! * 24 * 60 * 60 * 1000);
 
         await tx.auction.create({
           data: {

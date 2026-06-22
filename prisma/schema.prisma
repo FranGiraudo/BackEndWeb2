@@ -15,6 +15,8 @@ enum Role {
 enum NotificationType {
   NEW_INQUIRY
   PRICE_DROP
+  AUCTION_WON
+  AUCTION_ENDED
 }
 
 enum ReportStatus {

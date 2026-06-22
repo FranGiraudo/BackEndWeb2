@@ -78,6 +78,14 @@ export class AuctionsService {
         isActive: true,
         endsAt: { lte: now },
       },
+      include: {
+        car: true,
+        bids: {
+          orderBy: { amount: 'desc' },
+          take: 1,
+          include: { bidder: true },
+        },
+      },
     });
 
     for (const auction of expiredAuctions) {
@@ -94,6 +102,41 @@ export class AuctionsService {
             where: { id: auction.carId },
             data: { price: auction.currentPrice },
           });
+
+          const winnerBid = auction.bids[0];
+          if (winnerBid) {
+            // Notificar al ganador
+            await tx.notification.create({
+              data: {
+                userId: winnerBid.bidderId,
+                title: '¡Subasta Ganada!',
+                message: `Felicitaciones, ganaste la subasta del ${auction.car.brand} ${auction.car.model} por u$s ${auction.currentPrice.toLocaleString()}.`,
+                type: 'AUCTION_WON',
+              },
+            });
+
+            // Notificar al vendedor
+            await tx.notification.create({
+              data: {
+                userId: auction.car.sellerId,
+                title: 'Subasta Finalizada',
+                message: `Tu subasta del ${auction.car.brand} ${auction.car.model} finalizó por u$s ${auction.currentPrice.toLocaleString()}. El ganador fue notificado.`,
+                type: 'AUCTION_ENDED',
+              },
+            });
+
+            // Crear un chat (Inquiry) automático desde el vendedor al ganador
+            await tx.inquiry.create({
+              data: {
+                carId: auction.car.id,
+                senderId: auction.car.sellerId,
+                sellerId: auction.car.sellerId,
+                text: `¡Hola! Soy el dueño de la subasta que acabas de ganar por el ${auction.car.brand} ${auction.car.model} a u$s ${auction.currentPrice.toLocaleString()}. Me comunico para felicitarte y para que coordinemos la entrega y el pago.`,
+                senderName: 'Sistema (Vendedor)',
+                status: 'En Negociacion',
+              },
+            });
+          }
         });
         this.logger.log(`Subasta ${auction.id} finalizada. Auto ${auction.carId} actualizado a u$s${auction.currentPrice}`);
       } catch (error) {
