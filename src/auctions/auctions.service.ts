@@ -97,14 +97,33 @@ export class AuctionsService {
             data: { isActive: false },
           });
 
-          // Actualizar el precio del auto con la puja final
+          // Actualizar el precio del auto y cambiar su estado para que no aparezca más
           await tx.car.update({
             where: { id: auction.carId },
-            data: { price: auction.currentPrice },
+            data: { 
+              price: auction.currentPrice,
+              status: 'Reservado',
+              isActive: false // Para que desaparezca del catálogo principal
+            },
           });
 
           const winnerBid = auction.bids[0];
           if (winnerBid) {
+            // Guardar el auto en favoritos del ganador
+            await tx.favorite.upsert({
+              where: {
+                userId_carId: {
+                  userId: winnerBid.bidderId,
+                  carId: auction.carId,
+                }
+              },
+              update: {},
+              create: {
+                userId: winnerBid.bidderId,
+                carId: auction.carId,
+              }
+            });
+
             // Notificar al ganador
             await tx.notification.create({
               data: {
@@ -125,16 +144,30 @@ export class AuctionsService {
               },
             });
 
-            // Crear un chat (Inquiry) automático desde el vendedor al ganador
-            await tx.inquiry.create({
+            // Crear un chat (Inquiry) automático
+            // Nota: Para que el sistema de mensajería funcione bien, el senderId DEBE ser el comprador.
+            // Para satisfacer la necesidad del vendedor enviando el primer mensaje, creamos la consulta
+            // a nombre del sistema o forzamos el texto para que lo inicie el vendedor como Reply.
+            const inquiry = await tx.inquiry.create({
               data: {
                 carId: auction.car.id,
-                senderId: auction.car.sellerId,
+                senderId: winnerBid.bidderId, // Importante: el comprador es el sender para que le aparezca
                 sellerId: auction.car.sellerId,
-                text: `¡Hola! Soy el dueño de la subasta que acabas de ganar por el ${auction.car.brand} ${auction.car.model} a u$s ${auction.currentPrice.toLocaleString()}. Me comunico para felicitarte y para que coordinemos la entrega y el pago.`,
-                senderName: 'Sistema (Vendedor)',
+                text: `[Mensaje Automático] Se ha iniciado la comunicación por la subasta ganada del ${auction.car.brand} ${auction.car.model} a u$s ${auction.currentPrice.toLocaleString()}.`,
+                senderName: 'Sistema',
                 status: 'En Negociacion',
               },
+            });
+
+            // Luego le agregamos una respuesta automática del vendedor
+            await tx.reply.create({
+              data: {
+                inquiryId: inquiry.id,
+                text: `¡Hola! Soy el dueño del vehículo. Te escribo automáticamente porque ganaste mi subasta a u$s ${auction.currentPrice.toLocaleString()}. ¡Felicitaciones! Hablemos por acá para coordinar la entrega.`,
+                senderName: 'Sistema (Vendedor)',
+                senderRole: 'vendedor',
+                senderId: auction.car.sellerId
+              }
             });
           }
         });
