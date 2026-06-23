@@ -11,6 +11,25 @@ export class ReviewsService {
       throw new BadRequestException('No puedes calificarte a ti mismo.');
     }
 
+    const existingReview = await this.prisma.review.findUnique({
+      where: {
+        reviewerId_vendorId: {
+          reviewerId,
+          vendorId: createReviewDto.vendorId,
+        }
+      }
+    });
+
+    if (existingReview) {
+      return this.prisma.review.update({
+        where: { id: existingReview.id },
+        data: {
+          score: createReviewDto.score,
+          comment: createReviewDto.comment,
+        },
+      });
+    }
+
     return this.prisma.review.create({
       data: {
         reviewerId,
