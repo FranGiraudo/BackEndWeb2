@@ -23,10 +23,13 @@ export class CarsService {
    * Devuelve todos los vehículos activos con filtros opcionales.
    */
   async findAll(filters: FilterCarsDto) {
-    const where: any = { isActive: true };
+    const where: any = { isActive: true, status: 'Disponible' };
 
     if (filters.sellerId) {
       where.sellerId = parseInt(filters.sellerId);
+      // Si estamos filtrando por vendedor, permitimos ver los que no están disponibles (opcional)
+      // Pero si queremos mantener privacidad o limpieza, mejor dejar status: Disponible a menos que estemos en findMyCars
+      delete where.status;
     }
 
     if (filters.search) {
@@ -86,6 +89,7 @@ export class CarsService {
       include: {
         images: { orderBy: { isPrimary: 'desc' } },
         seller: { select: { email: true, nombre: true, apellido: true } },
+        priceHistories: { orderBy: { changedAt: 'desc' }, take: 1 },
       },
       orderBy: { createdAt: 'desc' },
     });
@@ -103,6 +107,7 @@ export class CarsService {
         images: { orderBy: { isPrimary: 'desc' } },
         viewLogs: { orderBy: { date: 'asc' } },
         seller: { select: { email: true, nombre: true, apellido: true } },
+        priceHistories: { orderBy: { changedAt: 'desc' }, take: 1 },
       },
       orderBy: { createdAt: 'desc' },
     });
@@ -119,10 +124,11 @@ export class CarsService {
    */
   async getTrending() {
     const cars = await this.prisma.car.findMany({
-      where: { isActive: true },
+      where: { isActive: true, status: 'Disponible' },
       include: {
         images: { orderBy: { isPrimary: 'desc' } },
         seller: { select: { email: true, nombre: true, apellido: true } },
+        priceHistories: { orderBy: { changedAt: 'desc' }, take: 1 },
       },
       orderBy: { viewCount: 'desc' },
       take: 10,
@@ -136,7 +142,7 @@ export class CarsService {
    */
   async findOne(id: number) {
     const car = await this.prisma.car.findFirst({
-      where: { id, isActive: true },
+      where: { id },
       include: {
         auction: true,
         images: { orderBy: { isPrimary: 'desc' } },
@@ -146,10 +152,10 @@ export class CarsService {
             email: true,
             nombre: true,
             apellido: true,
-            
             avatarUrl: true,
           },
         },
+        priceHistories: { orderBy: { changedAt: 'desc' }, take: 1 },
       },
     });
 
@@ -312,13 +318,24 @@ export class CarsService {
       throw new ForbiddenException('No tenés permiso para editar este vehículo.');
     }
 
-    if (dto.price && dto.price < car.price) {
-      await this.notificationsService.notifyPriceDrop(
-        id, 
-        car.price, 
-        dto.price, 
-        `${car.brand} ${car.model}`
-      );
+    if (dto.price && dto.price !== car.price) {
+      if (dto.price < car.price) {
+        await this.notificationsService.notifyPriceDrop(
+          id, 
+          car.price, 
+          dto.price, 
+          `${car.brand} ${car.model}`
+        );
+      }
+
+      // Trazabilidad de precios: Registrar historial
+      await this.prisma.priceHistory.create({
+        data: {
+          carId: id,
+          oldPrice: car.price,
+          newPrice: dto.price
+        }
+      });
     }
 
     const imageOperations: any = {};
@@ -388,9 +405,15 @@ export class CarsService {
       );
     }
 
+    // Soft-delete the car
     await this.prisma.car.update({
       where: { id },
       data: { isActive: false },
+    });
+
+    // Manually delete favorites since soft-delete doesn't trigger cascade
+    await this.prisma.favorite.deleteMany({
+      where: { carId: id }
     });
 
     return { success: true, message: 'Publicación eliminada correctamente.' };

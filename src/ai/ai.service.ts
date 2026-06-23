@@ -13,6 +13,8 @@ export interface AiAnalysisResult {
   brand?: string;
   model?: string;
   confidence?: number;
+  isFraud?: boolean;
+  fraudReason?: string;
 }
 
 export interface MarketValueEstimation {
@@ -109,6 +111,14 @@ REGLAS DE ORO DEL MERCADO ARGENTINO:
 3. Si en tu búsqueda encuentras precios absurdamente bajos (ej. $1.800 USD por un Golf 2005), asume que es un error de publicación o un adelanto de cuota.
 4. Si no encuentras un precio confiable en internet, confía ciegamente en el precio pretendido por el usuario ($${price} USD) y establece el rango en un +/- 15% de ese valor, ajustando levemente según el estado que deduzcas de las fotos.
 
+MUY IMPORTANTE (AUDITORÍA ANTI-FRAUDE): Eres el primer filtro de seguridad de la plataforma.
+Debes analizar si las fotos subidas provienen de una estafa, concesionaria competidora, o son irreales. 
+DEBES MARCAR "isFraud": true SI DETECTAS ALGUNO DE LOS SIGUIENTES CASOS:
+- Hay marcas de agua explícitas de otras plataformas (Kavak, MercadoLibre, OLX, Karvi, etc.).
+- La foto es claramente de un banco de imágenes (stock photo), una publicidad oficial de la marca o un render 3D de computadora.
+- La foto está burdamente photoshopeada o es un montaje.
+Si marcas "isFraud": true, debes explicar el motivo en "fraudReason". Si la foto parece legítima y sacada por un usuario real en la calle, garage o agencia limpia, marca "isFraud": false y deja "fraudReason" vacío.
+
 MUY IMPORTANTE: Los precios que devuelvas (aiPriceMin y aiPriceMax) DEBEN estar EXPRESADOS ESTRICTAMENTE EN DÓLARES ESTADOUNIDENSES (USD). 
 Si al buscar en internet encuentras precios publicados en Pesos Argentinos (ARS) en el rango de los millones (ej. 6.000.000 ARS), DEBES convertirlos a dólares dividiendo por ${currentUsdRate} (aprox) antes de generar el número final.
 
@@ -123,7 +133,9 @@ Devuelve EXCLUSIVAMENTE un objeto JSON plano con esta estructura exacta y sin fo
   "aiDamages": "Descripción corta de problemas deducidos (o 'Ninguno detectado')",
   "aiPriceMin": 0,
   "aiPriceMax": 0,
-  "aiScore": 0
+  "aiScore": 0,
+  "isFraud": false,
+  "fraudReason": ""
 }
 `;
 
@@ -367,6 +379,54 @@ Devuelve EXCLUSIVAMENTE un JSON limpio con el formato: { "recommendedCarIds": [n
     } catch (error) {
       this.logger.error('Error al generar recomendaciones con Groq:', error);
       return [];
+    }
+  }
+
+  async generateAdvisorReview(carData: any): Promise<{ review: string }> {
+    try {
+      this.logger.log(`Solicitando reseña del Asesor IA para vehículo...`);
+
+      const promptText = `
+Eres un asesor experto en compraventa de autos en Argentina con 20 años de experiencia en agencias y concesionarias, y un fanático de los "fierros" que conoce a la perfección todos los modelos.
+El usuario está viendo el siguiente vehículo y quiere tu opinión honesta y directa sobre si es una buena compra:
+- Marca: ${carData.brand}
+- Modelo: ${carData.model}
+- Año: ${carData.year}
+- Kilómetros: ${carData.km} km
+- Precio publicado: $${carData.price} USD
+- Estado visual evaluado por otra IA: ${carData.aiStatus || 'Desconocido'}
+- Valor real de mercado calculado por la plataforma: Entre $${carData.aiPriceMin || 'desconocido'} USD y $${carData.aiPriceMax || 'desconocido'} USD.
+
+Tu objetivo: Evalúa este auto de forma objetiva, hablále directo al comprador en un tono amable, profesional pero bien "fierrero" y coloquial (argentino). 
+
+REGLAS ESTRICTAS PARA TU ANÁLISIS:
+1. NO SEAS REPETITIVO. No pierdas tiempo resumiendo los datos que el comprador ya está viendo (no repitas el año, km o precio textualmente a menos que sea necesario para hacer una crítica).
+2. APORTA VALOR MECÁNICO Y TÉCNICO: Utiliza tu enorme base de datos para mencionar características REALES de este modelo en específico (${carData.brand} ${carData.model}). Por ejemplo, hablale del espacio interior, la calidad del motor (si usa correa o cadena, si gasta mucho, si es confiable), el nivel de equipamiento, confort de marcha o costo típico de los repuestos.
+3. COHERENCIA DE PRECIO: Si el "Precio publicado" es menor o igual al rango de mercado, recomendá la compra. Si es superior, advertí que está caro.
+4. Escribe un párrafo unificado y fluido de máximo 4 o 5 oraciones. NO devuelvas markdown, ni viñetas, ni emojis.
+5. Debes devolver EXCLUSIVAMENTE un JSON con la propiedad 'review'.
+`;
+
+      const response = await this.groq.chat.completions.create({
+        model: 'llama-3.3-70b-versatile',
+        messages: [
+          { role: 'system', content: "Eres un asesor experto automotriz argentino. Devuelve JSON." },
+          { role: 'user', content: promptText }
+        ],
+        response_format: { type: "json_object" }
+      });
+
+      const cleanText = response.choices[0]?.message?.content || '{}';
+      const parsed = JSON.parse(cleanText);
+      
+      return {
+        review: parsed.review || "El vehículo se ve interesante, pero te sugiero revisarlo en persona con tu mecánico de confianza antes de tomar una decisión."
+      };
+    } catch (error) {
+      this.logger.error('Error al generar reseña del Asesor:', error);
+      return {
+        review: "En este momento no puedo procesar el análisis, pero te sugiero revisar bien la publicación y consultar con un mecánico."
+      };
     }
   }
 }

@@ -8,19 +8,22 @@ import { Cron, CronExpression } from '@nestjs/schedule';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateBidDto } from './dto/create-bid.dto';
 
+import { AuctionsGateway } from './auctions.gateway';
+
 @Injectable()
 export class AuctionsService {
   private readonly logger = new Logger(AuctionsService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly auctionsGateway: AuctionsGateway,
+  ) {}
 
   async placeBid(auctionId: number, userId: number, dto: CreateBidDto) {
     const MINIMUM_MARGIN = 100;
 
-    return await this.prisma.$transaction(async (tx) => {
-      // 1. Obtener la subasta con bloqueo pesimista (row-level lock) para evitar condiciones de carrera.
-      // Nota: Prisma no soporta FOR UPDATE nativo en $transaction sin raw queries en todos los conectores, 
-      // pero para este caso evaluaremos el estado actual.
+    const result = await this.prisma.$transaction(async (tx) => {
+      // 1. Obtener la subasta
       const auction = await tx.auction.findUnique({
         where: { id: auctionId },
       });
@@ -66,6 +69,15 @@ export class AuctionsService {
         bid,
       };
     });
+
+    // Emit event to WebSocket
+    this.auctionsGateway.emitNewBid(
+      result.auction.id,
+      result.auction.currentPrice,
+      result.bid.bidderId,
+    );
+
+    return result;
   }
 
   @Cron(CronExpression.EVERY_MINUTE)
@@ -91,19 +103,23 @@ export class AuctionsService {
     for (const auction of expiredAuctions) {
       try {
         await this.prisma.$transaction(async (tx) => {
-          // Marcar subasta como inactiva
+          // Marcar subasta como inactiva y setear ganador
           await tx.auction.update({
             where: { id: auction.id },
-            data: { isActive: false },
+            data: { 
+              isActive: false,
+              winnerId: auction.bids[0]?.bidderId || null 
+            },
           });
 
-          // Actualizar el precio del auto y cambiar su estado para que no aparezca más
+          // Actualizar el precio del auto y cambiar su estado
           await tx.car.update({
             where: { id: auction.carId },
             data: { 
               price: auction.currentPrice,
               status: 'Reservado',
-              isActive: false // Para que desaparezca del catálogo principal
+              // Mantenemos isActive en true para que siga siendo visible en el detail y perfil
+              isActive: true 
             },
           });
 
@@ -131,6 +147,7 @@ export class AuctionsService {
                 title: '¡Subasta Ganada!',
                 message: `Felicitaciones, ganaste la subasta del ${auction.car.brand} ${auction.car.model} por u$s ${auction.currentPrice.toLocaleString()}.`,
                 type: 'AUCTION_WON',
+                linkUrl: `/pages/detail.html?id=${auction.carId}`,
               },
             });
 
@@ -138,9 +155,10 @@ export class AuctionsService {
             await tx.notification.create({
               data: {
                 userId: auction.car.sellerId,
-                title: 'Subasta Finalizada',
-                message: `Tu subasta del ${auction.car.brand} ${auction.car.model} finalizó por u$s ${auction.currentPrice.toLocaleString()}. El ganador fue notificado.`,
+                title: '¡Subasta Finalizada!',
+                message: `Tu subasta para el ${auction.car.brand} ${auction.car.model} terminó en u$s ${auction.currentPrice.toLocaleString()}.`,
                 type: 'AUCTION_ENDED',
+                linkUrl: `/pages/detail.html?id=${auction.carId}`,
               },
             });
 
@@ -171,10 +189,43 @@ export class AuctionsService {
             });
           }
         });
+        
+        // Emit WebSocket event to notify clients that the auction has ended
+        this.auctionsGateway.emitAuctionEnded(
+          auction.id,
+          auction.currentPrice,
+          auction.bids[0]?.bidderId || null
+        );
+
         this.logger.log(`Subasta ${auction.id} finalizada. Auto ${auction.carId} actualizado a u$s${auction.currentPrice}`);
       } catch (error) {
-        this.logger.error(`Error al finalizar subasta ${auction.id}`, error);
+        this.logger.error(`Error procesando subasta ${auction.id}: ${error.message}`);
       }
     }
+  }
+
+  async getHistory(userId: number) {
+    const auctions = await this.prisma.auction.findMany({
+      where: {
+        isActive: false,
+        OR: [
+          { winnerId: userId },
+          { car: { sellerId: userId } }
+        ]
+      },
+      include: {
+        car: {
+          include: {
+            images: { orderBy: { isPrimary: 'desc' } }
+          }
+        },
+        winner: {
+          select: { id: true, nombre: true, apellido: true, email: true }
+        }
+      },
+      orderBy: { endsAt: 'desc' }
+    });
+
+    return auctions;
   }
 }

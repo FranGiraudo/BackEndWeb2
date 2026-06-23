@@ -15,6 +15,11 @@ export class ReviewsController {
     return this.reviewsService.create(reviewerId, createReviewDto);
   }
 
+  @Get('ranking')
+  getTopVendors() {
+    return this.reviewsService.getTopVendors();
+  }
+
   @Get('vendor/:id')
   findByVendor(@Param('id') id: string) {
     return this.reviewsService.findByVendor(+id);

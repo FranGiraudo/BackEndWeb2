@@ -12,62 +12,77 @@ export class RecommendationsService {
     private readonly aiService: AiService,
   ) {}
 
+  async generateForUser(userId: number) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      include: {
+        searchHistories: { orderBy: { createdAt: 'desc' }, take: 10 },
+        favorites: { include: { car: true } }
+      }
+    });
+
+    let userContext = "";
+    let reason = "";
+
+    if (!user || (user.searchHistories.length === 0 && user.favorites.length === 0)) {
+      // Fallback para usuarios sin historial
+      userContext = "El usuario es nuevo y no tiene historial. Recomienda 3 autos populares, variados y de buena relación calidad-precio para empezar a conocer sus gustos.";
+      reason = "Selección especial para vos";
+    } else {
+      userContext = JSON.stringify({
+        recentSearches: user.searchHistories.map(sh => sh.filters || sh.queryText),
+        favoriteCars: user.favorites.map(f => `${f.car.brand} ${f.car.model} (${f.car.year})`)
+      });
+      reason = 'Recomendado por IA según tu historial reciente';
+    }
+
+    const availableCars = await this.prisma.car.findMany({
+      where: { 
+        status: 'Disponible',
+        auction: null
+      },
+      select: { id: true, brand: true, model: true, year: true, price: true, km: true }
+    });
+
+    if (availableCars.length === 0) return null;
+
+    const catalogJson = JSON.stringify(availableCars);
+
+    this.logger.debug(`Generando recomendacion on-demand para usuario ID ${userId}...`);
+
+    const recommendedIds = await this.aiService.generateWeeklyRecommendations(userContext, catalogJson);
+
+    if (recommendedIds && recommendedIds.length > 0) {
+      return await this.prisma.aiRecommendation.create({
+        data: {
+          userId: userId,
+          carIds: recommendedIds,
+          score: 85,
+          reason: reason
+        }
+      });
+    }
+    return null;
+  }
+
   @Cron(CronExpression.EVERY_WEEK)
   async handleWeeklyRecommendations() {
     this.logger.log('Iniciando generacion semanal de recomendaciones...');
 
     try {
-      // 1. Buscar compradores activos con historial o favoritos
       const users = await this.prisma.user.findMany({
         where: { role: 'comprador' },
         include: {
-          searchHistories: { orderBy: { createdAt: 'desc' }, take: 10 },
-          favorites: { include: { car: true } }
+          searchHistories: { orderBy: { createdAt: 'desc' }, take: 1 },
+          favorites: { take: 1 }
         }
       });
 
       const activeUsers = users.filter(u => u.searchHistories.length > 0 || u.favorites.length > 0);
 
-      if (activeUsers.length === 0) {
-        this.logger.log('No hay usuarios activos para recomendar.');
-        return;
-      }
-
-      // 2. Obtener catalogo de autos disponibles
-      const availableCars = await this.prisma.car.findMany({
-        where: { status: 'disponible' },
-        select: { id: true, brand: true, model: true, year: true, price: true, km: true }
-      });
-
-      if (availableCars.length === 0) {
-        this.logger.log('No hay autos en el catalogo para recomendar.');
-        return;
-      }
-
-      const catalogJson = JSON.stringify(availableCars);
-
-      // 3. Iterar y pedir recomendacion a la IA para cada usuario
       for (const user of activeUsers) {
         try {
-          const userContext = JSON.stringify({
-            recentSearches: user.searchHistories.map(sh => sh.filters || sh.queryText),
-            favoriteCars: user.favorites.map(f => `${f.car.brand} ${f.car.model} (${f.car.year})`)
-          });
-
-          this.logger.debug(`Procesando usuario ID ${user.id}...`);
-
-          const recommendedIds = await this.aiService.generateWeeklyRecommendations(userContext, catalogJson);
-
-          if (recommendedIds && recommendedIds.length > 0) {
-            await this.prisma.aiRecommendation.create({
-              data: {
-                userId: user.id,
-                carIds: recommendedIds,
-                score: 85,
-                reason: 'Recomendado por IA según tu historial'
-              }
-            });
-          }
+          await this.generateForUser(user.id);
         } catch (e) {
           this.logger.error(`Error generando recomendacion para el usuario ${user.id}`, e);
         }

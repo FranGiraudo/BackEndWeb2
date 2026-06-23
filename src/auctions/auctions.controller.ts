@@ -1,4 +1,4 @@
-import { Body, Controller, Param, ParseIntPipe, Post, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Param, ParseIntPipe, Post, Req, UseGuards, Get } from '@nestjs/common';
 import { AuctionsService } from './auctions.service';
 import { CreateBidDto } from './dto/create-bid.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -17,5 +17,12 @@ export class AuctionsController {
   ) {
     const userId = (req.user as any).id;
     return await this.auctionsService.placeBid(id, userId, createBidDto);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('history')
+  async getHistory(@Req() req: Request) {
+    const userId = (req.user as any).id;
+    return await this.auctionsService.getHistory(userId);
   }
 }

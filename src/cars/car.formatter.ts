@@ -46,5 +46,6 @@ export function formatCar(car: any) {
     } : null,
     createdAt: car.createdAt,
     auction: car.auction,
+    oldPrice: car.priceHistories?.length > 0 ? car.priceHistories[0].oldPrice : null,
   };
 }

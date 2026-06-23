@@ -11,4 +11,11 @@ export class AiController {
     const recommendation = await this.aiService.compareVehicles(body.cars);
     return recommendation;
   }
+
+  @Post('advisor-review')
+  @HttpCode(HttpStatus.OK)
+  async getAdvisorReview(@Body() body: { carData: any }) {
+    const response = await this.aiService.generateAdvisorReview(body.carData);
+    return response;
+  }
 }

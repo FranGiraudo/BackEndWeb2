@@ -53,6 +53,7 @@ export class AuthService {
     return {
       success: true,
       user: {
+        id: user.id,
         email: user.email,
         rol: user.role,
         nombre: user.nombre,
@@ -93,6 +94,7 @@ export class AuthService {
       success: true,
       access_token,
       user: {
+        id: user.id,
         email: user.email,
         role: user.role,   // "role" para compatibilidad exacta con el frontend
         rol: user.role,    // "rol" también, para consistencia con el mock

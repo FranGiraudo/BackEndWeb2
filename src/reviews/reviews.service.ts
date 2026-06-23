@@ -32,4 +32,33 @@ export class ReviewsService {
       orderBy: { createdAt: 'desc' },
     });
   }
+
+  async getTopVendors() {
+    const vendors = await this.prisma.user.findMany({
+      where: { role: 'vendedor' },
+      include: {
+        reviewsReceived: true,
+      }
+    });
+
+    const ranking = vendors.map(v => {
+      const totalReviews = v.reviewsReceived.length;
+      const avgScore = totalReviews > 0 
+        ? v.reviewsReceived.reduce((acc, curr) => acc + curr.score, 0) / totalReviews 
+        : 0;
+      return {
+        id: v.id,
+        nombre: v.nombre,
+        apellido: v.apellido,
+        avatarUrl: v.avatarUrl,
+        avgScore,
+        totalReviews
+      };
+    })
+    .filter(v => v.totalReviews > 0)
+    .sort((a, b) => b.avgScore - a.avgScore || b.totalReviews - a.totalReviews)
+    .slice(0, 5);
+
+    return ranking;
+  }
 }

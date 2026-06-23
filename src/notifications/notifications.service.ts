@@ -20,13 +20,14 @@ export class NotificationsService {
     });
   }
 
-  async createNotification(userId: number, title: string, message: string, type: 'NEW_INQUIRY' | 'PRICE_DROP') {
+  async createNotification(userId: number, title: string, message: string, type: 'NEW_INQUIRY' | 'PRICE_DROP' | 'AUCTION_WON' | 'AUCTION_ENDED', linkUrl?: string) {
     return this.prisma.notification.create({
       data: {
         userId,
         title,
         message,
         type,
+        linkUrl,
       },
     });
   }
